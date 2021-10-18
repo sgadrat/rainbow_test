@@ -1,3 +1,14 @@
+.export oam_mirror
+.exportzp tmpfield1
+.exportzp tmpfield2
+
+.import game_init
+.import game_tick
+.import esp_send_cmd_short
+.import esp_wait_answer
+.import esp_cmd_clear_buffers
+.import esp_cmd_get_esp_status
+
 .include "rainbow-constants.s"
 .include "nes-constants.s"
 
@@ -17,8 +28,6 @@ oam_mirror = $0200
 	.word irq
 
 .segment "FIXED_BANK"
-
-.include "rainbow-routines.s"
 
 irq:
 	rti
@@ -159,8 +168,11 @@ program:
 	lda #%00011110 ; Enable sprites and background rendering
 	sta PPUMASK    ;
 
+	jsr game_init
+
 	program_loop:
-		;TODO
+		jsr wait_next_frame
+		jsr game_tick
 		jmp program_loop
 
 fatal_failure:

@@ -1,3 +1,17 @@
+.export esp_cmd_clear_buffers
+.export esp_cmd_get_esp_status
+.export esp_send_cmd_short
+.export esp_send_cmd
+.export esp_get_msg
+.export esp_wait_answer
+
+.importzp tmpfield1
+.importzp tmpfield2
+
+.include "rainbow-constants.s"
+
+.segment "PRG31"
+
 ;-------------------------------------------------------------------------------
 ; Invariable messages
 ;-------------------------------------------------------------------------------
