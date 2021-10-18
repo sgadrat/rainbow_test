@@ -4,21 +4,21 @@ ROOT_DIR := .
 CFLAGS := -Os -Wall -Wextra -Werror -I $(ROOT_DIR)
 
 all: \
-	src/ping.o \
+	src/send_receive.o \
 	system/ines.o \
 	chr/tiles.o \
-	ping.nes
+	send_receive.nes
 
 clean:
 	rm -f \
-		src/ping.o \
+		src/send_receive.o \
 		system/ines.o \
 		chr/tiles.o \
-		ping.nes \
-		ping.map \
-		ping.dbg
+		send_receive.nes \
+		send_receive.map \
+		send_receive.dbg
 
-src/ping.o: src/ping.s
+src/send_receive.o: src/send_receive.s
 	$(CA) $<
 
 system/ines.o: system/ines.s
@@ -27,12 +27,11 @@ system/ines.o: system/ines.s
 chr/tiles.o: chr/tiles.s chr/background.chr chr/sprite.chr
 	$(CA) $<
 
-ping.nes: system/ld65.cfg chr/tiles.o src/ping.o
+send_receive.nes: system/ld65.cfg chr/tiles.o src/send_receive.o
 	$(LD) -o $@ \
 	-C system/ld65.cfg \
-	--dbgfile ping.dbg \
-	--mapfile ping.map \
-	src/ping.o \
+	--dbgfile send_receive.dbg \
+	--mapfile send_receive.map \
+	src/send_receive.o \
 	system/ines.o \
-	src/main.o \
 	chr/tiles.o

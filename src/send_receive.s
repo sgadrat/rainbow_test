@@ -14,18 +14,30 @@
 
 .include "rainbow-constants.s"
 
+oam_mirror = $0200
+
+.zeropage
+	tmpfield1: .res 1
+	tmpfield2: .res 1
+	nmi_processing: .res 1
+
 .segment "VECTORS"
 	.word _nmi
-	.word __STARTUP_LOAD__
+	.word nes_init
 	.word irq
 
 .segment "FIXED_BANK"
+
+.include "rainbow-routines.s"
+
+nes_init:
 	sei        ; disable IRQs
 	ldx #$40
 	cld        ; disable decimal mode
 	stx $4017  ; disable APU frame IRQ
 	ldx #$FF
 	txs        ; Set up stack
+	; fallthrough to rainbow_init
 
 rainbow_init:
 	; Enable ESP
@@ -83,27 +95,94 @@ rainbow_init:
 
 	lda RAINBOW_DATA ; Burn garbage byte
 
-	.( ; Message length, must be 1
-		ldx RAINBOW_DATA
-		cpx #1
-		beq ok
-			jmp fatal_failure
-		ok:
-	.)
+	; Message length, must be 1
+	ldx RAINBOW_DATA
+	cpx #1
+	beq :+
+		jmp fatal_failure
+	:
 
-	.( ; Message type, must be READY
-		lda RAINBOW_DATA
-		cmp #FROMESP_MSG_READY
-		beq ok
-			jmp fatal_failure
-		ok:
-	.)
+	; Message type, must be READY
+	lda RAINBOW_DATA
+	cmp #FROMESP_MSG_READY
+	beq :+
+		jmp fatal_failure
+	:
+
+	; fallthrough to program
 
 program:
-	;TODO
+	; Wait for two vblanks to be sure PPU is ready
+	jsr wait_vbi
+	jsr wait_vbi
+
+	; Reset scrolling
+	lda #$00
+	sta scroll_x
+	sta scroll_y
+
+	; Move all sprites offscreen
+	ldx #$00
+	clr_sprites:
+		lda #$fe
+		sta oam_mirror, x    ;move all sprites off screen
+		inx
+		bne clr_sprites
+
+	; Set palettes (background - black, sprites - white)
+	bit PPUADDR
+	lda #$3f
+	sta PPUADDR
+	lda #$00
+	sta PPUADDR
+
+	lda #$0f
+	ldx #4*4
+	:
+		sta PPUDATA
+		dex
+		bne :-
+
+	ldx #4
+	:
+		lda #$0f
+		sta PPUDATA
+		lda #$20
+		sta PPUDATA
+		sta PPUDATA
+		sta PPUDATA
+		dex
+		bne :-
+
+	; Enable rendering
+	lda #%10010000  ;
+	sta ppuctrl_val ; Reactivate NMI
+	sta PPUCTRL     ;
+	jsr wait_next_frame ; Avoid re-enabling mid-frame
+	lda #%00011110 ; Enable sprites and background rendering
+	sta PPUMASK    ;
+
+	program_loop:
+		;TODO
+		jmp program_loop
 
 fatal_failure:
 	jmp fatal_failure
+
+wait_next_frame:
+	lda #1
+	sta nmi_processing
+	:
+		lda nmi_processing
+		bne :-
+	rts
+
+wait_vbi:
+	bit PPUSTATUS
+	:
+		bit PPUSTATUS
+		bpl :-
+	rts
 
 _nmi:
 	; Save CPU registers
@@ -114,7 +193,28 @@ _nmi:
 	tya
 	pha
 
-	;TODO
+	; Do not draw anything if not ready
+	lda nmi_processing
+	beq end
+
+	; reload PPU OAM (Objects Attributes Memory) with fresh data from cpu memory
+	lda #<oam_mirror
+	sta OAMADDR
+	lda #>oam_mirror
+	sta OAMDMA
+
+	; Scroll
+	lda ppuctrl_val
+	sta PPUCTRL
+	lda PPUSTATUS
+	lda scroll_x
+	sta PPUSCROLL
+	lda scroll_y
+	sta PPUSCROLL
+
+	; Inform that NMI is handled
+	lda #$00
+	sta nmi_processing
 
 	; Restore CPU registers
 	pla
