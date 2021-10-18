@@ -1,18 +1,5 @@
-.feature at_in_identifiers
-
-.importzp _sp0, _sp1, _fp0, _fp1
-.importzp _r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7
-.importzp _s0, _s1, _s2, _s3, _s4, _s5, _s6, _s7
-.importzp _tmp0, _tmp1
-
-.import main
-.import nmi
-.import irq
-.import __DATA_RUN__
-.import __DATA_LOAD__
-.import __DATA_SIZE__
-
 .include "rainbow-constants.s"
+.include "nes-constants.s"
 
 oam_mirror = $0200
 
@@ -20,6 +7,9 @@ oam_mirror = $0200
 	tmpfield1: .res 1
 	tmpfield2: .res 1
 	nmi_processing: .res 1
+	ppuctrl_val: .res 1
+	scroll_x: .res 1
+	scroll_y: .res 1
 
 .segment "VECTORS"
 	.word _nmi
@@ -30,19 +20,26 @@ oam_mirror = $0200
 
 .include "rainbow-routines.s"
 
+irq:
+	rti
+
 nes_init:
 	sei        ; disable IRQs
 	ldx #$40
 	cld        ; disable decimal mode
-	stx $4017  ; disable APU frame IRQ
-	ldx #$FF
+	stx APU_FRAMECNT ; disable APU frame IRQ
+	ldx #$ff
 	txs        ; Set up stack
+	inx               ; now X = 0
+	stx PPUCTRL       ; disable NMI
+	stx PPUMASK       ; disable rendering
+	stx APU_DMC_FLAGS ; disable DMC IRQs
 	; fallthrough to rainbow_init
 
 rainbow_init:
 	; Enable ESP
 	lda #%00000001
-	sta RAINBOW_FLAGS
+	sta ESP_CONFIG
 
 	; Configure rainbow mapper
 	lda #%00010110 ; ssmmrccp - horizontal mirroring, CHR-ROM, 8k CHR window, 16k+8k+8k PRG banking
@@ -85,7 +82,7 @@ rainbow_init:
 	bne vblank_wait
 
 	wait_empty_buffer:        ; Be really sure that the clear happened
-		bit RAINBOW_FLAGS
+		bit ESP_CONFIG
 		bmi wait_empty_buffer
 
 	lda #<esp_cmd_get_esp_status ; Wait for ESP to be ready
@@ -93,18 +90,18 @@ rainbow_init:
 	jsr esp_send_cmd_short
 	jsr esp_wait_answer
 
-	lda RAINBOW_DATA ; Burn garbage byte
+	lda ESP_DATA ; Burn garbage byte
 
 	; Message length, must be 1
-	ldx RAINBOW_DATA
+	ldx ESP_DATA
 	cpx #1
 	beq :+
 		jmp fatal_failure
 	:
 
 	; Message type, must be READY
-	lda RAINBOW_DATA
-	cmp #FROMESP_MSG_READY
+	lda ESP_DATA
+	cmp #FROM_ESP::READY
 	beq :+
 		jmp fatal_failure
 	:
@@ -185,6 +182,7 @@ wait_vbi:
 	rts
 
 _nmi:
+.scope
 	; Save CPU registers
 	php
 	pha
@@ -216,6 +214,8 @@ _nmi:
 	lda #$00
 	sta nmi_processing
 
+	end:
+
 	; Restore CPU registers
 	pla
 	tay
@@ -225,3 +225,4 @@ _nmi:
 	plp
 
 	rti
+.endscope

@@ -27,7 +27,7 @@ system/ines.o: system/ines.s
 chr/tiles.o: chr/tiles.s chr/background.chr chr/sprite.chr
 	$(CA) $<
 
-send_receive.nes: system/ld65.cfg chr/tiles.o src/send_receive.o
+send_receive.nes: system/ld65.cfg chr/tiles.o system/ines.o src/send_receive.o
 	$(LD) -o $@ \
 	-C system/ld65.cfg \
 	--dbgfile send_receive.dbg \

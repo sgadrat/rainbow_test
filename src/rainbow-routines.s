@@ -3,10 +3,10 @@
 ;-------------------------------------------------------------------------------
 
 esp_cmd_clear_buffers:
-	.byt 1, TOESP_MSG_CLEAR_BUFFERS
+	.byt 1, TO_ESP::BUFFER_CLEAR_RX_TX
 
 esp_cmd_get_esp_status:
-	.byt 1, TOESP_MSG_GET_ESP_STATUS
+	.byt 1, TO_ESP::ESP_GET_STATUS
 
 ;-------------------------------------------------------------------------------
 ; Utility routines
@@ -37,13 +37,13 @@ esp_send_cmd:
 .scope
 	ldy #0
 	lda (tmpfield1), y
-	sta RAINBOW_DATA
+	sta ESP_DATA
 
 	tax
 	iny
 	copy_one_byte:
 		lda (tmpfield1), y
-		sta RAINBOW_DATA
+		sta ESP_DATA
 		iny
 		dex
 		bne copy_one_byte
@@ -75,7 +75,7 @@ esp_get_msg:
 .scope
 	ldy #0
 
-	bit RAINBOW_FLAGS
+	bit ESP_CONFIG
 	bmi store_msg
 
 		; No message, set msg_len to zero
@@ -84,9 +84,9 @@ esp_get_msg:
 		jmp end
 
 	store_msg:
-		lda RAINBOW_DATA ; Garbage byte
+		lda ESP_DATA ; Garbage byte
 		nop
-		lda RAINBOW_DATA ; Message length
+		lda ESP_DATA ; Message length
 		sta (tmpfield1), y
 
 		tax
@@ -96,7 +96,7 @@ esp_get_msg:
 			beq end
 
 			iny
-			lda RAINBOW_DATA
+			lda ESP_DATA
 			sta (tmpfield1), y
 
 			jmp copy_one_byte
@@ -109,7 +109,7 @@ esp_get_msg:
 esp_wait_answer:
 .scope
 	wait_ready_bit:
-		bit RAINBOW_FLAGS
+		bit ESP_CONFIG
 		bpl wait_ready_bit
 	rts
 .endscope

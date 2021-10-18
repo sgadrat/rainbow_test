@@ -3,7 +3,6 @@
 MAPPER_NUMBER = 3872
 SUBMAPPER_NUMBER = 0
 MAPPER_BATTERY_FLAG = 0
-INES_SRAM   = 0 ; 1 = battery backed SRAM at $6000-7FFF
 
 .byte 'N', 'E', 'S', $1a ; ID
 .byt 32         ; PRG section occupies 32*16KiB memory
