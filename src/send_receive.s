@@ -1,4 +1,5 @@
 .export oam_mirror
+.export wait_next_frame
 .exportzp tmpfield1
 .exportzp tmpfield2
 
