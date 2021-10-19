@@ -7,12 +7,17 @@
 .importzp tmpfield1, tmpfield2
 
 .include "rainbow-constants.s"
+.include "nes-constants.s"
 
 rainbow_buffer = $0300
 
 .zeropage
 
 	last_received_value: .res 1
+	controller_a_btns: .res 1
+	controller_b_btns: .res 1
+	controller_a_last_frame_btns: .res 1
+	controller_b_last_frame_btns: .res 1
 
 .segment "PRG31"
 
@@ -40,10 +45,16 @@ game_init:
 
 game_tick:
 .scope
+	; Fetch controllers
+	jsr fetch_controllers
+
 	; Send a message
-	lda #<send_data_cmd
-	ldx #>send_data_cmd
-	jsr esp_send_cmd_short
+	lda controller_a_btns
+	beq :+
+		lda #<send_data_cmd
+		ldx #>send_data_cmd
+		jsr esp_send_cmd_short
+	:
 
 	; Check incoming message
 	lda #<rainbow_buffer
@@ -148,3 +159,42 @@ connect:
 		.byt 2, TO_ESP::SERVER_SET_PROTOCOL, SERVER_PROTOCOLS::UDP
 	connect_cmd:
 		.byt 1, TO_ESP::SERVER_CONNECT
+
+fetch_controllers:
+.scope
+	; Fetch controllers state
+	lda #$01
+	sta CONTROLLER_A
+	lda #$00
+	sta CONTROLLER_A
+
+	; x will contain the controller number to fetch (0 or 1)
+	ldx #$00
+
+	fetch_one_controller:
+
+	; Save previous state of the controller
+	lda controller_a_btns, x
+	sta controller_a_last_frame_btns, x
+
+	; Reset the controller's byte
+	lda #$00
+	sta controller_a_btns, x
+
+	; Fetch the controller's byte button by button
+	ldy #$08
+	next_btn:
+		lda CONTROLLER_A, x
+		and #%00000011
+		cmp #1
+		rol controller_a_btns, x
+		dey
+		bne next_btn
+
+	; Next controller
+	inx
+	cpx #$02
+	bne fetch_one_controller
+
+	rts
+.endscope
