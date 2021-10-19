@@ -106,10 +106,10 @@ game_tick:
 	lda last_received_value
 	sta oam_mirror+3
 
+	rts
+
 	send_data_cmd:
 		.byt 11, TO_ESP::SERVER_SEND_MESSAGE, 1,2,3,4,5,6,7,8,9,10
-
-	rts
 .endscope
 
 connect:
