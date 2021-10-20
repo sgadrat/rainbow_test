@@ -11,9 +11,24 @@
 
 rainbow_buffer = $0300
 
+ACTION_NOP = 0
+ACTION_SEND = 1
+ACTION_RECEIVE = 2
+
+CONTROLLER_BTN_A      = %10000000
+CONTROLLER_BTN_B      = %01000000
+CONTROLLER_BTN_SELECT = %00100000
+CONTROLLER_BTN_START  = %00010000
+CONTROLLER_BTN_UP     = %00001000
+CONTROLLER_BTN_DOWN   = %00000100
+CONTROLLER_BTN_LEFT   = %00000010
+CONTROLLER_BTN_RIGHT  = %00000001
+
 .zeropage
 
 	last_received_value: .res 1
+	action: .res 1
+
 	controller_a_btns: .res 1
 	controller_b_btns: .res 1
 	controller_a_last_frame_btns: .res 1
@@ -48,9 +63,37 @@ game_tick:
 	; Fetch controllers
 	jsr fetch_controllers
 
-	; Send a message
+	; Select what to do this frame (press a to receive, b to send)
+	lda #ACTION_NOP
+	sta action
+
+	; Send on maintaining B
 	lda controller_a_btns
-	beq :+
+	cmp #CONTROLLER_BTN_B
+	bne debug_ok
+		lda #ACTION_SEND
+		sta action
+	debug_ok:
+
+	; Comment this nop and you have issues only when sending and receiving packets at the same time
+	; Uncomment them and you have issues also when not sending packets
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+
+	; Send a message
+	lda action
+	cmp #ACTION_SEND
+	bne :+
 		lda #<send_data_cmd
 		ldx #>send_data_cmd
 		jsr esp_send_cmd_short
