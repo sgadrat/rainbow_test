@@ -22,6 +22,7 @@ rainbow_buffer = $0300
 .segment "PRG31"
 
 game_init:
+.scope
 	; Init state
 	lda #0
 	sta last_received_value
@@ -38,10 +39,19 @@ game_init:
 	sta oam_mirror+3
 	sta oam_mirror+3+4
 
+	; Enable logs
+	lda #<enable_log_cmd
+	ldx #>enable_log_cmd
+	jsr esp_send_cmd_short
+
 	; Connect to server
 	jsr connect
 
 	rts
+
+	enable_log_cmd:
+		.byt 2, TO_ESP::DEBUG_SET_LEVEL, %00000001
+.endscope
 
 game_tick:
 .scope
@@ -99,6 +109,22 @@ game_tick:
 			sta oam_mirror+4
 			lda last_received_value
 			sta oam_mirror+4+3
+
+			; Log malformed message
+			lda #1+2+151 ; debug_log's header + msg_from_server's header + udp message length
+			sta ESP_DATA
+			lda #TO_ESP::DEBUG_LOG
+			sta ESP_DATA
+
+			ldy #2+151 ; msg_from_server's header + udp message length
+			ldx #0
+			log_msg_loop:
+				lda rainbow_buffer, x
+				sta ESP_DATA
+				inx
+
+				dey
+				bne log_msg_loop
 
 	end_receive:
 
